@@ -2,25 +2,26 @@ using System;
 using System.IO;
 using System.Net.Http;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
 
 namespace AudioSample
 {
-    public class AudioService : BackgroundService
+    public class AudioService
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IApplicationLifetime _applicationLifetime;
 
-        public AudioService(IHttpClientFactory httpClientFactory, IApplicationLifetime applicationLifetime)
+        public AudioService(IHttpClientFactory httpClientFactory)
         {
             _httpClientFactory = httpClientFactory;
-            _applicationLifetime = applicationLifetime;
         }
 
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        public async Task StartAsync()
         {
+            Console.WriteLine("Provide the text to be spoken and saved to an audio file.");
+            Console.Write("> ");
+
+            var textToSpeak = Console.ReadLine();
+
             using (var textToSpeechClient = _httpClientFactory.CreateClient("TextToSpeech"))
             {
                 const string path = "cognitiveservices/v1";
@@ -28,7 +29,7 @@ namespace AudioSample
                 // SSML + XML body for the request
                 string body = $@"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
                               <voice name='Microsoft Server Speech Text to Speech Voice (en-US, Jessa24kRUS)'>
-                               We hope you enjoy using Text-to-Speech, a Microsoft Speech Services feature.
+                              {textToSpeak}
                               </voice></speak>";
 
                 // Instantiate the request
@@ -43,7 +44,7 @@ namespace AudioSample
                     try
                     {
                         // Create a request                   
-                        using (var response = await textToSpeechClient.SendAsync(request, stoppingToken))
+                        using (var response = await textToSpeechClient.SendAsync(request))
                         {
                             Console.WriteLine($"Status code: {response.StatusCode}");
 
@@ -56,7 +57,7 @@ namespace AudioSample
                                  * it's an audio file. Then close the stream. */
                                 using (var fileStream = new FileStream("sample.wav", FileMode.Create, FileAccess.Write, FileShare.Write))
                                 {
-                                    await dataStream.CopyToAsync(fileStream, stoppingToken);
+                                    await dataStream.CopyToAsync(fileStream);
                                     fileStream.Close();
                                 }
                             }
@@ -79,8 +80,6 @@ namespace AudioSample
                     Console.ReadLine();
                 }
             }
-
-            _applicationLifetime.StopApplication();
         }
     }
 }
